@@ -308,7 +308,6 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                         index={index}
                         type="video"
                         onDownload={handleDownload}
-                        progress={downloadProgress[fmt.format_id] || 0}
                         isDownloading={isDownloading[fmt.format_id] || false}
                       />
                     ))
@@ -353,7 +352,6 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                         index={index}
                         type="audio"
                         onDownload={handleDownload}
-                        progress={downloadProgress[fmt.format_id] || 0}
                         isDownloading={isDownloading[fmt.format_id] || false}
                       />
                     ))
