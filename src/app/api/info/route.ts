@@ -28,8 +28,7 @@ export async function POST(req: Request) {
 
     const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
-    const cmd = `"${bin}" ${cookieArg} --js-runtimes node --no-playlist --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" -j "${url}"`;
-    const { stdout } = await execPromise(cmd, { maxBuffer: 50 * 1024 * 1024 });
+    const { stdout } = await execPromise(`"${bin}" ${cookieArg} --js-runtimes nodejs --no-playlist -j "${url}"`, { maxBuffer: 50 * 1024 * 1024 });
     
     // Fix: Find the first '{' and last '}' to strip warnings
     const jsonString = stdout.slice(stdout.indexOf('{'), stdout.lastIndexOf('}') + 1);

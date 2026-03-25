@@ -52,17 +52,13 @@ const rowVariants: Variants = {
 
 /* ─── Badge Component ────────────────────────────────────────────────────── */
 function Badge({ fmt, type }: { fmt: FormatOption; type: 'video' | 'audio' }) {
-  // Logic from prompt: acodec and vcodec check is usually done on the backend info route.
-  // The 'badge' or 'isMerged' property from our api/info is where we check this.
-  const isMerged = fmt.isMerged || fmt.badge === 'MERGED';
-
   return (
     <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ml-2 ${
-      isMerged && type === 'video'
+      fmt.isMerged && type === 'video'
         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" 
         : "bg-white/5 text-white/40 border-white/10"
     }`}>
-      {type === 'video' ? (isMerged ? "MERGED" : "VIDEO ONLY") : "AUDIO"}
+      {type === 'video' ? (fmt.isMerged ? "MERGED" : "VIDEO ONLY") : "AUDIO"}
     </span>
   );
 }
@@ -75,8 +71,6 @@ function FormatRow({
   hoverColor,
   index,
   type,
-  onDownload,
-  isDownloading
 }: {
   fmt: FormatOption;
   videoId: string;
@@ -84,9 +78,9 @@ function FormatRow({
   hoverColor: string;
   index: number;
   type: 'video' | 'audio';
-  onDownload: (fmt: FormatOption, type: 'video' | 'audio') => void;
-  isDownloading: boolean;
 }) {
+  const downloadUrl = `/api/download?videoId=${encodeURIComponent(videoId)}&format_id=${fmt.format_id}`;
+  
   const ext = fmt.mimeType?.includes("webm")
     ? "WEBM"
     : fmt.mimeType?.includes("mp4")
@@ -123,17 +117,14 @@ function FormatRow({
         <span className="text-[10px] font-mono text-white/30 hidden sm:block">
           {ext}
         </span>
-        <button
-          onClick={() => onDownload(fmt, type)}
-          disabled={isDownloading}
-          className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group relative disabled:opacity-50`}
+        <a
+          href={downloadUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group`}
         >
-          {isDownloading ? (
-             <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-          ) : (
-            <Download className="w-4 h-4 text-white/40 group-hover:text-white transition-colors duration-200" />
-          )}
-        </button>
+          <Download className="w-4 h-4 text-white/40 group-hover:text-white transition-colors duration-200" />
+        </a>
       </div>
     </motion.div>
   );
@@ -141,20 +132,6 @@ function FormatRow({
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 export default function ResultCard({ data, onReset }: ResultCardProps) {
-  const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
-
-  const handleDownload = (fmt: FormatOption, type: 'video' | 'audio') => {
-    const formatId = fmt.format_id;
-    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}&type=${type}`;
-    
-    setIsDownloading(prev => ({ ...prev, [formatId]: true }));
-    window.location.assign(downloadUrl);
-
-    // Reset the UI after a short delay
-    setTimeout(() => {
-      setIsDownloading(prev => ({ ...prev, [formatId]: false }));
-    }, 5000);
-  };
   return (
     <motion.div
       className="w-full max-w-5xl mx-auto"
@@ -299,8 +276,6 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                         hoverColor="hover:bg-yt-red"
                         index={index}
                         type="video"
-                        onDownload={handleDownload}
-                        isDownloading={isDownloading[fmt.format_id] || false}
                       />
                     ))
                   ) : (
@@ -343,8 +318,6 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                         hoverColor="hover:bg-yt-red"
                         index={index}
                         type="audio"
-                        onDownload={handleDownload}
-                        isDownloading={isDownloading[fmt.format_id] || false}
                       />
                     ))
                   ) : (
