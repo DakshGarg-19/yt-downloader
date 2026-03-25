@@ -12,19 +12,20 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const videoId = searchParams.get('videoId');
   const format_id = searchParams.get('format_id');
+  const type = searchParams.get('type') || 'video';
 
   if (!videoId || !format_id) {
     return new NextResponse('Missing videoId or format_id', { status: 400 });
   }
+
+  // Secure runtime cookie path
+  const cookiePath = path.join(os.tmpdir(), `youtube-cookies-${videoId}.txt`);
 
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     
     // On Linux/Docker, yt-dlp is installed globally in the system path.
     const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
-
-    // Secure runtime cookie path
-    const cookiePath = path.join(os.tmpdir(), 'youtube-cookies.txt');
 
     // Write the cookies from the environment variable to a temporary file in the Docker container
     if (process.env.YOUTUBE_COOKIES) {
@@ -48,17 +49,28 @@ export async function GET(req: Request) {
       throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
     }
 
+    const ext = type === 'audio' ? 'webm' : 'mp4';
+
     // Pass the stream directly to the client with forced download headers
     return new NextResponse(response.body, {
       status: 200,
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Length': response.headers.get('Content-Length') || '',
-        'Content-Disposition': `attachment; filename="video.mp4"`,
+        'Content-Disposition': `attachment; filename="KODEX-file.${ext}"`,
       }
     });
   } catch (error: any) {
     console.error('DOWNLOAD ERROR:', error);
     return new NextResponse(error.message, { status: 500 });
+  } finally {
+    // SECURE CLEANUP: Remove the temporary cookie file
+    if (fs.existsSync(cookiePath)) {
+      try {
+        fs.unlinkSync(cookiePath);
+      } catch (e) {
+        console.error('Cleanup error:', e);
+      }
+    }
   }
 }

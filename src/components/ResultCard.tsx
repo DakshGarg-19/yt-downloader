@@ -84,7 +84,7 @@ function FormatRow({
   hoverColor: string;
   index: number;
   type: 'video' | 'audio';
-  onDownload: (fmt: FormatOption) => void;
+  onDownload: (fmt: FormatOption, type: 'video' | 'audio') => void;
   isDownloading: boolean;
 }) {
   const ext = fmt.mimeType?.includes("webm")
@@ -124,7 +124,7 @@ function FormatRow({
           {ext}
         </span>
         <button
-          onClick={() => onDownload(fmt)}
+          onClick={() => onDownload(fmt, type)}
           disabled={isDownloading}
           className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group relative disabled:opacity-50`}
         >
@@ -143,12 +143,12 @@ function FormatRow({
 export default function ResultCard({ data, onReset }: ResultCardProps) {
   const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
 
-  const handleDownload = (fmt: FormatOption) => {
+  const handleDownload = (fmt: FormatOption, type: 'video' | 'audio') => {
     const formatId = fmt.format_id;
-    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
+    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}&type=${type}`;
     
     setIsDownloading(prev => ({ ...prev, [formatId]: true }));
-    window.location.href = downloadUrl;
+    window.location.assign(downloadUrl);
 
     // Reset the UI after a short delay
     setTimeout(() => {
