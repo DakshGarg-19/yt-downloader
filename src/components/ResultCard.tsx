@@ -151,7 +151,6 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
     setIsDownloading(prev => ({ ...prev, [formatId]: true }));
 
     // TRIGGER NATIVE BROWSER DOWNLOAD
-    // This is safe, will not corrupt files, and tracks progress natively in the browser
     const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
     window.location.assign(downloadUrl);
 
