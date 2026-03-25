@@ -37,7 +37,8 @@ export async function GET(req: Request) {
     const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
     // Get the direct stream URL using the system binary
-    const { stdout } = await execPromise(`"${bin}" ${cookieArg} --js-runtimes nodejs --no-playlist -f "${format_id}" --get-url "${url}"`, { maxBuffer: 50 * 1024 * 1024 });
+    const cmd = `"${bin}" ${cookieArg} --js-runtimes node --no-playlist --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" -f "${format_id}" --get-url "${url}"`;
+    const { stdout } = await execPromise(cmd, { maxBuffer: 50 * 1024 * 1024 });
     const directUrl = stdout.trim();
 
     // Proxy the download through the server to bypass IP-locking
