@@ -205,7 +205,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
         }
       }
 
-      const blob = new Blob(chunks);
+      const blob = new Blob(chunks as any as BlobPart[]);
       const downloadUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = downloadUrl;
