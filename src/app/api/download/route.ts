@@ -24,40 +24,51 @@ export async function GET(req: Request) {
     const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
 
     // Secure runtime cookie path
-    const cookiePath = path.join(os.tmpdir(), 'youtube-cookies.txt');
+    const cookiePath = path.join(os.tmpdir(), `youtube-cookies-${Date.now()}.txt`);
 
-    // Write the cookies from the environment variable to a temporary file in the Docker container
-    if (process.env.YOUTUBE_COOKIES) {
-      fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
-    } else if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
-      // Fallback for local development
-      fs.copyFileSync(path.join(process.cwd(), 'cookies.txt'), cookiePath);
+    try {
+      // Write the cookies from the environment variable to a temporary file in the Docker container
+      if (process.env.YOUTUBE_COOKIES) {
+        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
+      } else if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
+        // Fallback for local development
+        fs.copyFileSync(path.join(process.cwd(), 'cookies.txt'), cookiePath);
+      }
+
+      const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
+      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+      // Get the direct stream URL using the system binary
+      const { stdout } = await execPromise(
+        `"${bin}" ${cookieArg} --user-agent "${userAgent}" --js-runtimes nodejs --no-playlist -f "${format_id}" --get-url "${url}"`, 
+        { maxBuffer: 50 * 1024 * 1024 }
+      );
+      const directUrl = stdout.trim();
+
+      // Proxy the download through the server to bypass IP-locking
+      const response = await fetch(directUrl);
+      
+      if (!response.ok) {
+        throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
+      }
+
+      const headers = new Headers();
+      // Forward relevant headers from YouTube
+      headers.set('Content-Type', response.headers.get('Content-Type') || 'video/mp4');
+      headers.set('Content-Length', response.headers.get('Content-Length') || '');
+      headers.set('Content-Disposition', `attachment; filename="video_${videoId}.mp4"`);
+
+      // Stream the body directly to the client
+      return new NextResponse(response.body, {
+        status: 200,
+        headers
+      });
+    } finally {
+      // Cleanup: Delete the temporary cookie file
+      if (fs.existsSync(cookiePath)) {
+        try { fs.unlinkSync(cookiePath); } catch (e) {}
+      }
     }
-
-    const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
-
-    // Get the direct stream URL using the system binary
-    const { stdout } = await execPromise(`"${bin}" ${cookieArg} --js-runtimes nodejs --no-playlist -f "${format_id}" --get-url "${url}"`, { maxBuffer: 50 * 1024 * 1024 });
-    const directUrl = stdout.trim();
-
-    // Proxy the download through the server to bypass IP-locking
-    const response = await fetch(directUrl);
-    
-    if (!response.ok) {
-      throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
-    }
-
-    const headers = new Headers();
-    // Forward relevant headers from YouTube
-    headers.set('Content-Type', response.headers.get('Content-Type') || 'video/mp4');
-    headers.set('Content-Length', response.headers.get('Content-Length') || '');
-    headers.set('Content-Disposition', `attachment; filename="video_${videoId}.mp4"`);
-
-    // Stream the body directly to the client
-    return new NextResponse(response.body, {
-      status: 200,
-      headers
-    });
   } catch (error: any) {
     console.error('DOWNLOAD ERROR:', error);
     return new NextResponse(error.message, { status: 500 });
