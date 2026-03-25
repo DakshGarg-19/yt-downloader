@@ -12,64 +12,63 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const videoId = searchParams.get('videoId');
   const format_id = searchParams.get('format_id');
+  const isAudio = searchParams.get('type') === 'audio';
 
   if (!videoId || !format_id) {
-    return new NextResponse('Missing videoId or format_id', { status: 400 });
+    return new NextResponse('Missing info', { status: 400 });
   }
 
+  const cookiePath = path.join(os.tmpdir(), `yt-dl-${Date.now()}.txt`);
+  
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
-    const cookiePath = path.join(os.tmpdir(), `youtube-cookies-${Date.now()}.txt`);
+    
+    // The master key. This must be exactly the same in BOTH the yt-dlp command AND the fetch request.
+    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-    try {
-      if (process.env.YOUTUBE_COOKIES) {
-        fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
-      } else if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
-        fs.copyFileSync(path.join(process.cwd(), 'cookies.txt'), cookiePath);
-      }
-
-      const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
-      const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
-
-      // CRITICAL FIX: Added --quiet and --no-warnings so ONLY the clean URL is returned
-      const { stdout } = await execPromise(
-        `"${bin}" ${cookieArg} --user-agent "${userAgent}" --js-runtimes node --no-playlist --quiet --no-warnings -f "${format_id}" --get-url "${url}"`, 
-        { maxBuffer: 50 * 1024 * 1024 }
-      );
-      
-      // Safety net: split by newline and grab the last line in case stray text sneaks in
-      const lines = stdout.trim().split('\n');
-      const directUrl = lines[lines.length - 1].trim();
-
-      const response = await fetch(directUrl);
-      
-      if (!response.ok) {
-        throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
-      }
-
-      const headers = new Headers();
-      headers.set('Content-Type', response.headers.get('Content-Type') || 'video/mp4');
-      
-      // CRITICAL FIX: Tell the browser exactly how large the file is so it doesn't get "stuck"
-      const contentLength = response.headers.get('Content-Length');
-      if (contentLength) {
-        headers.set('Content-Length', contentLength);
-      }
-      
-      headers.set('Content-Disposition', `attachment; filename="KODEX_${videoId}.mp4"`);
-
-      return new NextResponse(response.body, {
-        status: 200,
-        headers
-      });
-    } finally {
-      if (fs.existsSync(cookiePath)) {
-        try { fs.unlinkSync(cookiePath); } catch (e) {}
-      }
+    if (process.env.YOUTUBE_COOKIES) {
+      fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
     }
-  } catch (error: any) {
-    console.error('DOWNLOAD ERROR:', error);
-    return new NextResponse(error.message, { status: 500 });
+
+    const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
+
+    // Extract the raw URL using --print urls (safer than --get-url)
+    const { stdout } = await execPromise(
+      `"${bin}" ${cookieArg} --user-agent "${userAgent}" --js-runtimes node --no-playlist --quiet --no-warnings --print urls -f "${format_id}" "${url}"`,
+      { maxBuffer: 100 * 1024 * 1024 }
+    );
+
+    const directUrl = stdout.trim().split('\n').pop();
+    
+    if (!directUrl || !directUrl.startsWith('http')) {
+        throw new Error('Failed to extract valid URL from YouTube');
+    }
+
+    // 🚨 THE CRITICAL FIX: We MUST pass the Chrome User-Agent to the fetch request, or YouTube blocks the stream. 🚨
+    const res = await fetch(directUrl, {
+        headers: {
+            'User-Agent': userAgent
+        }
+    });
+
+    if (!res.ok) {
+        throw new Error(`YouTube blocked the download stream: ${res.status}`);
+    }
+
+    const ext = isAudio ? 'mp3' : 'mp4';
+    const headers = new Headers(res.headers);
+    headers.set('Content-Disposition', `attachment; filename="KODEX_${videoId}.${ext}"`);
+    headers.set('Content-Type', 'application/octet-stream');
+
+    return new NextResponse(res.body, { headers });
+    
+  } catch (e: any) {
+    console.error('Download Pipe Error:', e);
+    return new NextResponse(`Download Error: ${e.message}`, { status: 500 });
+  } finally {
+    if (fs.existsSync(cookiePath)) {
+      try { fs.unlinkSync(cookiePath); } catch (e) {}
+    }
   }
 }
