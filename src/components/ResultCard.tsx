@@ -76,7 +76,6 @@ function FormatRow({
   index,
   type,
   onDownload,
-  progress,
   isDownloading
 }: {
   fmt: FormatOption;
