@@ -38,13 +38,23 @@ export async function POST(req: Request) {
 
       const videoFormats = info.formats
         .filter((f: any) => f.vcodec !== 'none')
-        .map((f: any) => ({
-          format_id: f.format_id,
-          quality: f.resolution || `${f.height}p`,
-          mimeType: f.ext || 'mp4',
-          size: f.filesize ? (f.filesize / 1024 / 1024).toFixed(1) + ' MB' : 'N/A',
-          isMerged: f.acodec !== 'none'
-        })).reverse();
+        .map((f: any) => {
+          const isMerged = f.acodec !== 'none';
+          return {
+            format_id: f.format_id,
+            quality: f.resolution || `${f.height}p`,
+            mimeType: f.ext || 'mp4',
+            size: f.filesize ? (f.filesize / 1024 / 1024).toFixed(1) + ' MB' : 'N/A',
+            badge: isMerged ? 'MERGED' : 'VIDEO ONLY',
+            isMerged
+          };
+        })
+        .sort((a: any, b: any) => {
+          // Force MERGED streams to the very top, then sort by quality
+          if (a.isMerged && !b.isMerged) return -1;
+          if (!a.isMerged && b.isMerged) return 1;
+          return parseInt(b.quality) - parseInt(a.quality);
+        });
 
       const audioFormats = info.formats
         .filter((f: any) => f.vcodec === 'none' && f.acodec !== 'none')
