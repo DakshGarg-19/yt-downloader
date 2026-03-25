@@ -1,0 +1,3 @@
+src/app/api/info/route.ts(4,8): error TS1259: Module '"path"' can only be default-imported using the 'esModuleInterop' flag
+src/app/api/info/route.ts(5,8): error TS1192: Module '"fs"' has no default export.
+src/app/api/info/route.ts(6,8): error TS1192: Module '"os"' has no default export.
