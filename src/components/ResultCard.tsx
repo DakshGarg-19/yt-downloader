@@ -52,8 +52,6 @@ const rowVariants: Variants = {
 
 /* ─── Badge Component ────────────────────────────────────────────────────── */
 function Badge({ fmt, type }: { fmt: FormatOption; type: 'video' | 'audio' }) {
-  // Logic from prompt: acodec and vcodec check is usually done on the backend info route.
-  // The 'badge' or 'isMerged' property from our api/info is where we check this.
   const isMerged = fmt.isMerged || fmt.badge === 'MERGED';
 
   return (
@@ -84,7 +82,7 @@ function FormatRow({
   hoverColor: string;
   index: number;
   type: 'video' | 'audio';
-  onDownload: (fmt: FormatOption) => void;
+  onDownload: (fmt: FormatOption, type: 'video' | 'audio') => void;
   isDownloading: boolean;
 }) {
   const ext = fmt.mimeType?.includes("webm")
@@ -124,7 +122,7 @@ function FormatRow({
           {ext}
         </span>
         <button
-          onClick={() => onDownload(fmt)}
+          onClick={() => onDownload(fmt, type)}
           disabled={isDownloading}
           className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group relative disabled:opacity-50`}
         >
@@ -143,15 +141,15 @@ function FormatRow({
 export default function ResultCard({ data, onReset }: ResultCardProps) {
   const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
 
-  const handleDownload = (fmt: FormatOption) => {
+  const handleDownload = (fmt: FormatOption, type: 'video' | 'audio') => {
     const formatId = fmt.format_id;
     if (isDownloading[formatId]) return;
 
     // Set visual loading state
     setIsDownloading(prev => ({ ...prev, [formatId]: true }));
 
-    // TRIGGER NATIVE BROWSER DOWNLOAD
-    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
+    // THE FINAL FIX: Added &type=${type} so the backend saves audio properly!
+    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}&type=${type}`;
     window.location.assign(downloadUrl);
 
     // Reset the button after 3 seconds
@@ -159,6 +157,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
       setIsDownloading(prev => ({ ...prev, [formatId]: false }));
     }, 3000);
   };
+  
   return (
     <motion.div
       className="w-full max-w-5xl mx-auto"
@@ -267,7 +266,6 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
             ))}
           </motion.div>
 
-          {/* Divider */}
           <div className="h-px bg-white/6 mb-6" />
 
           {/* ═══════════════ ROW 3: Split Media Columns ═══════════════ */}
