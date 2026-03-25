@@ -131,34 +131,7 @@ function FormatRow({
           className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group relative disabled:opacity-50`}
         >
           {isDownloading ? (
-             <div className="relative w-6 h-6">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    fill="transparent"
-                    className="text-white/10"
-                  />
-                  <circle
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="2.5"
-                    fill="transparent"
-                    strokeDasharray={62.8}
-                    strokeDashoffset={62.8 - (62.8 * progress) / 100}
-                    strokeLinecap="round"
-                    className="text-white transition-all duration-300"
-                  />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-[7px] font-bold">
-                  {progress}%
-                </span>
-             </div>
+             <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
           ) : (
             <Download className="w-4 h-4 text-white/40 group-hover:text-white transition-colors duration-200" />
           )}
@@ -170,7 +143,6 @@ function FormatRow({
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 export default function ResultCard({ data, onReset }: ResultCardProps) {
-  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
   const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
 
   const handleDownload = async (fmt: FormatOption) => {
@@ -178,47 +150,17 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
     if (isDownloading[formatId]) return;
 
     setIsDownloading(prev => ({ ...prev, [formatId]: true }));
-    setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }));
 
     try {
-      const response = await fetch(`/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`);
+      const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
+      window.location.assign(downloadUrl);
       
-      if (!response.ok) throw new Error("Server error during download");
-
-      const totalLength = Number(response.headers.get('Content-Length'));
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("Stream not available");
-
-      let receivedLength = 0;
-      const chunks: Uint8Array[] = [];
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        
-        chunks.push(value);
-        receivedLength += value.length;
-        
-        if (totalLength) {
-          const percent = Math.round((receivedLength / totalLength) * 100);
-          setDownloadProgress(prev => ({ ...prev, [formatId]: percent }));
-        }
-      }
-
-      const blob = new Blob(chunks as any as BlobPart[]);
-      const downloadUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = `${data.title.replace(/[^\w\s-]/gi, '')}_${fmt.quality}.${fmt.mimeType.split('/')[1] || 'mp4'}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(downloadUrl);
-
+      // We wait a moment before resetting the UI to give the browser time to initiate
+      setTimeout(() => {
+        setIsDownloading(prev => ({ ...prev, [formatId]: false }));
+      }, 3000);
     } catch (error) {
       console.error("Download failed:", error);
-      alert("Proxy download failed. This can happen with very large files in a browser memory.");
-    } finally {
       setIsDownloading(prev => ({ ...prev, [formatId]: false }));
     }
   };
