@@ -2,11 +2,11 @@ FROM node:20-bookworm-slim
 
 # Install vital system dependencies for yt-dlp signature solving
 # ca-certificates: Needed for HTTPS/SSL verification
-# python3 & python3-is-python3: Required for yt-dlp to execute JS deciphering
+# python3 & python-is-python3: Required for yt-dlp to execute JS deciphering
 RUN apt-get update && apt-get install -y \
     curl \
     python3 \
-    python3-is-python3 \
+    python-is-python3 \
     ffmpeg \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
