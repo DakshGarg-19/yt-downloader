@@ -19,15 +19,13 @@ export async function GET(req: Request) {
   try {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     
-    // Use the global path where pip3 installs it on Render/Linux
-    const bin = process.env.NODE_ENV === 'production' 
-      ? '/usr/local/bin/yt-dlp' 
-      : path.join(process.cwd(), process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+    // On Linux/Docker, yt-dlp is installed globally in the system path.
+    const bin = 'yt-dlp';
 
     const cookies = path.join(process.cwd(), 'cookies.txt');
     const cookieArg = fs.existsSync(cookies) ? `--cookies "${cookies}"` : '';
 
-    // Get the direct stream URL using the detected binary
+    // Get the direct stream URL using the system binary
     const { stdout } = await execPromise(`"${bin}" ${cookieArg} -f "${format_id}" --get-url "${url}"`);
     const directUrl = stdout.trim();
 
