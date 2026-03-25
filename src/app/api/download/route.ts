@@ -20,18 +20,18 @@ export async function GET(req: Request) {
     const url = `https://www.youtube.com/watch?v=${videoId}`;
     
     // On Linux/Docker, yt-dlp is installed globally in the system path.
-    const bin = 'yt-dlp';
+    const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
 
     const cookies = path.join(process.cwd(), 'cookies.txt');
     const cookieArg = fs.existsSync(cookies) ? `--cookies "${cookies}"` : '';
 
     // Get the direct stream URL using the system binary
-    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -f "${format_id}" --get-url "${url}"`);
+    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -f "${format_id}" --get-url "${url}"`, { maxBuffer: 10 * 1024 * 1024 });
     const directUrl = stdout.trim();
 
     return NextResponse.redirect(directUrl, 302);
   } catch (error: any) {
-    console.error('DOWNLOAD ERROR:', error.message);
-    return new NextResponse('Download failed', { status: 500 });
+    console.error('DOWNLOAD ERROR:', error);
+    return new NextResponse(error.message, { status: 500 });
   }
 }

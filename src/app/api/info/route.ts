@@ -12,12 +12,12 @@ export async function POST(req: Request) {
     const { url } = await req.json();
     
     // On Linux/Docker, yt-dlp is installed globally in the system path.
-    const bin = 'yt-dlp';
+    const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
 
     const cookies = path.join(process.cwd(), 'cookies.txt');
     const cookieArg = fs.existsSync(cookies) ? `--cookies "${cookies}"` : '';
 
-    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -j "${url}"`);
+    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -j "${url}"`, { maxBuffer: 10 * 1024 * 1024 });
     
     // Fix: Find the first '{' and last '}' to strip warnings
     const jsonString = stdout.slice(stdout.indexOf('{'), stdout.lastIndexOf('}') + 1);
@@ -56,7 +56,7 @@ export async function POST(req: Request) {
       audioFormats
     });
   } catch (error: any) {
-    console.error('PARSE ERROR:', error.message);
-    return NextResponse.json({ error: 'Failed to process video. Check binary path.' }, { status: 500 });
+    console.error('PARSE ERROR DETAILS:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
