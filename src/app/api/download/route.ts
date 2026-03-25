@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
     // Get the direct stream URL using the system binary
-    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -f "${format_id}" --get-url "${url}"`, { maxBuffer: 10 * 1024 * 1024 });
+    const { stdout } = await execPromise(`"${bin}" ${cookieArg} --no-playlist -f "${format_id}" --get-url "${url}"`, { maxBuffer: 50 * 1024 * 1024 });
     const directUrl = stdout.trim();
 
     return NextResponse.redirect(directUrl, 302);
