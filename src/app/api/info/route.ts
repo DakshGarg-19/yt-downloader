@@ -3,6 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 export const runtime = 'nodejs';
 const execPromise = promisify(exec);
@@ -14,8 +15,18 @@ export async function POST(req: Request) {
     // On Linux/Docker, yt-dlp is installed globally in the system path.
     const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
 
-    const cookies = path.join(process.cwd(), 'cookies.txt');
-    const cookieArg = fs.existsSync(cookies) ? `--cookies "${cookies}"` : '';
+    // Secure runtime cookie path
+    const cookiePath = path.join(os.tmpdir(), 'youtube-cookies.txt');
+
+    // Write the cookies from the environment variable to a temporary file in the Docker container
+    if (process.env.YOUTUBE_COOKIES) {
+      fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
+    } else if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
+      // Fallback for local development
+      fs.copyFileSync(path.join(process.cwd(), 'cookies.txt'), cookiePath);
+    }
+
+    const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
     const { stdout } = await execPromise(`"${bin}" ${cookieArg} -j "${url}"`, { maxBuffer: 10 * 1024 * 1024 });
     
