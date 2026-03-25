@@ -147,25 +147,18 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
     const formatId = fmt.format_id;
     if (isDownloading[formatId]) return;
 
-    setIsDownloading((prev) => ({ ...prev, [formatId]: true }));
+    // Set visual loading state
+    setIsDownloading(prev => ({ ...prev, [formatId]: true }));
 
-    try {
-      const downloadUrl = `/api/download?videoId=${encodeURIComponent(
-        data.videoId
-      )}&format_id=${encodeURIComponent(formatId)}`;
-      window.location.assign(downloadUrl);
+    // TRIGGER NATIVE BROWSER DOWNLOAD
+    // This is safe, will not corrupt files, and tracks progress natively in the browser
+    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
+    window.location.assign(downloadUrl);
 
-      // We wait a moment before resetting the UI to give the browser time to initiate
-      setTimeout(() => {
-        setIsDownloading((prev) => ({ ...prev, [formatId]: false }));
-      }, 3000);
-    } catch (error) {
-      console.error("Download failed:", error);
-      // Reset the UI after a short delay
-      setTimeout(() => {
-        setIsDownloading((prev) => ({ ...prev, [formatId]: false }));
-      }, 5000);
-    }
+    // Reset the button after 3 seconds
+    setTimeout(() => {
+      setIsDownloading(prev => ({ ...prev, [formatId]: false }));
+    }, 3000);
   };
   return (
     <motion.div
