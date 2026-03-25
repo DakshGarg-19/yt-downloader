@@ -12,7 +12,10 @@ export async function POST(req: Request) {
     const bin = 'yt-dlp'; 
     const cookieArg = ''; // Optional: add `--cookies cookies.txt` if needed
 
-    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -j --no-warnings "${url}"`);
+    const { stdout } = await execPromise(
+      `"${bin}" ${cookieArg} -j --flat-playlist --no-warnings --quiet --js-runtimes node "${url}"`,
+      { timeout: 25000, maxBuffer: 10 * 1024 * 1024 }
+    );
     const info = JSON.parse(stdout.split('\n')[0]);
 
     // STRICT FILTER: Only allow direct HTTPS files. No DASH manifests. No chunked streams.
@@ -58,6 +61,7 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('INFO ERROR:', error.message);
-    return NextResponse.json({ error: 'Failed to process video.' }, { status: 500 });
+    const message = error.signal === 'SIGTERM' ? "YouTube is slow, try again" : "Failed to process video.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
