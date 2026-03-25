@@ -32,12 +32,15 @@ export async function GET(req: Request) {
       const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
       const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
 
-      // CRITICAL FIX: --js-runtimes node
+      // CRITICAL FIX: Added --quiet and --no-warnings so ONLY the clean URL is returned
       const { stdout } = await execPromise(
-        `"${bin}" ${cookieArg} --user-agent "${userAgent}" --js-runtimes node --no-playlist -f "${format_id}" --get-url "${url}"`, 
+        `"${bin}" ${cookieArg} --user-agent "${userAgent}" --js-runtimes node --no-playlist --quiet --no-warnings -f "${format_id}" --get-url "${url}"`, 
         { maxBuffer: 50 * 1024 * 1024 }
       );
-      const directUrl = stdout.trim();
+      
+      // Safety net: split by newline and grab the last line in case stray text sneaks in
+      const lines = stdout.trim().split('\n');
+      const directUrl = lines[lines.length - 1].trim();
 
       const response = await fetch(directUrl);
       
@@ -47,6 +50,13 @@ export async function GET(req: Request) {
 
       const headers = new Headers();
       headers.set('Content-Type', response.headers.get('Content-Type') || 'video/mp4');
+      
+      // CRITICAL FIX: Tell the browser exactly how large the file is so it doesn't get "stuck"
+      const contentLength = response.headers.get('Content-Length');
+      if (contentLength) {
+        headers.set('Content-Length', contentLength);
+      }
+      
       headers.set('Content-Disposition', `attachment; filename="KODEX_${videoId}.mp4"`);
 
       return new NextResponse(response.body, {
