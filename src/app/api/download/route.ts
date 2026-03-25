@@ -50,9 +50,12 @@ export async function GET(req: Request) {
 
     const headers = new Headers();
     // Forward relevant headers from YouTube
-    headers.set('Content-Type', response.headers.get('Content-Type') || 'video/mp4');
+    headers.set('Content-Type', response.headers.get('Content-Type') || 'application/octet-stream');
     headers.set('Content-Length', response.headers.get('Content-Length') || '');
-    headers.set('Content-Disposition', `attachment; filename="video_${videoId}.mp4"`);
+    headers.set('Content-Disposition', `attachment; filename="download.mp4"`);
+    
+    // CRITICAL: Expose Content-Length to the frontend so the progress bar works
+    headers.set('Access-Control-Expose-Headers', 'Content-Length');
 
     // Stream the body directly to the client
     return new NextResponse(response.body, {

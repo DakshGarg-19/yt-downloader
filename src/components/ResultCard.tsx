@@ -52,13 +52,17 @@ const rowVariants: Variants = {
 
 /* ─── Badge Component ────────────────────────────────────────────────────── */
 function Badge({ fmt, type }: { fmt: FormatOption; type: 'video' | 'audio' }) {
+  // Logic from prompt: acodec and vcodec check is usually done on the backend info route.
+  // The 'badge' or 'isMerged' property from our api/info is where we check this.
+  const isMerged = fmt.isMerged || fmt.badge === 'MERGED';
+
   return (
     <span className={`text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-widest ml-2 ${
-      fmt.isMerged && type === 'video'
+      isMerged && type === 'video'
         ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" 
         : "bg-white/5 text-white/40 border-white/10"
     }`}>
-      {type === 'video' ? (fmt.isMerged ? "MERGED" : "VIDEO ONLY") : "AUDIO"}
+      {type === 'video' ? (isMerged ? "MERGED" : "VIDEO ONLY") : "AUDIO"}
     </span>
   );
 }
@@ -71,6 +75,9 @@ function FormatRow({
   hoverColor,
   index,
   type,
+  onDownload,
+  progress,
+  isDownloading
 }: {
   fmt: FormatOption;
   videoId: string;
@@ -78,9 +85,10 @@ function FormatRow({
   hoverColor: string;
   index: number;
   type: 'video' | 'audio';
+  onDownload: (fmt: FormatOption) => void;
+  progress: number;
+  isDownloading: boolean;
 }) {
-  const downloadUrl = `/api/download?videoId=${encodeURIComponent(videoId)}&format_id=${fmt.format_id}`;
-  
   const ext = fmt.mimeType?.includes("webm")
     ? "WEBM"
     : fmt.mimeType?.includes("mp4")
@@ -117,14 +125,44 @@ function FormatRow({
         <span className="text-[10px] font-mono text-white/30 hidden sm:block">
           {ext}
         </span>
-        <a
-          href={downloadUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group`}
+        <button
+          onClick={() => onDownload(fmt)}
+          disabled={isDownloading}
+          className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group relative disabled:opacity-50`}
         >
-          <Download className="w-4 h-4 text-white/40 group-hover:text-white transition-colors duration-200" />
-        </a>
+          {isDownloading ? (
+             <div className="relative w-6 h-6">
+                <svg className="w-full h-full transform -rotate-90">
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    fill="transparent"
+                    className="text-white/10"
+                  />
+                  <circle
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    fill="transparent"
+                    strokeDasharray={62.8}
+                    strokeDashoffset={62.8 - (62.8 * progress) / 100}
+                    strokeLinecap="round"
+                    className="text-white transition-all duration-300"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[7px] font-bold">
+                  {progress}%
+                </span>
+             </div>
+          ) : (
+            <Download className="w-4 h-4 text-white/40 group-hover:text-white transition-colors duration-200" />
+          )}
+        </button>
       </div>
     </motion.div>
   );
@@ -132,6 +170,58 @@ function FormatRow({
 
 /* ─── Main Component ─────────────────────────────────────────────────────── */
 export default function ResultCard({ data, onReset }: ResultCardProps) {
+  const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({});
+  const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
+
+  const handleDownload = async (fmt: FormatOption) => {
+    const formatId = fmt.format_id;
+    if (isDownloading[formatId]) return;
+
+    setIsDownloading(prev => ({ ...prev, [formatId]: true }));
+    setDownloadProgress(prev => ({ ...prev, [formatId]: 0 }));
+
+    try {
+      const response = await fetch(`/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`);
+      
+      if (!response.ok) throw new Error("Server error during download");
+
+      const totalLength = Number(response.headers.get('Content-Length'));
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Stream not available");
+
+      let receivedLength = 0;
+      const chunks: Uint8Array[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        chunks.push(value);
+        receivedLength += value.length;
+        
+        if (totalLength) {
+          const percent = Math.round((receivedLength / totalLength) * 100);
+          setDownloadProgress(prev => ({ ...prev, [formatId]: percent }));
+        }
+      }
+
+      const blob = new Blob(chunks);
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.download = `${data.title.replace(/[^\w\s-]/gi, '')}_${fmt.quality}.${fmt.mimeType.split('/')[1] || 'mp4'}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(downloadUrl);
+
+    } catch (error) {
+      console.error("Download failed:", error);
+      alert("Proxy download failed. This can happen with very large files in a browser memory.");
+    } finally {
+      setIsDownloading(prev => ({ ...prev, [formatId]: false }));
+    }
+  };
   return (
     <motion.div
       className="w-full max-w-5xl mx-auto"
@@ -276,6 +366,9 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                         hoverColor="hover:bg-yt-red"
                         index={index}
                         type="video"
+                        onDownload={handleDownload}
+                        progress={downloadProgress[fmt.format_id] || 0}
+                        isDownloading={isDownloading[fmt.format_id] || false}
                       />
                     ))
                   ) : (
@@ -318,6 +411,9 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                         hoverColor="hover:bg-yt-red"
                         index={index}
                         type="audio"
+                        onDownload={handleDownload}
+                        progress={downloadProgress[fmt.format_id] || 0}
+                        isDownloading={isDownloading[fmt.format_id] || false}
                       />
                     ))
                   ) : (
