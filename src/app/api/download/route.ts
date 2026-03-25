@@ -40,7 +40,24 @@ export async function GET(req: Request) {
     const { stdout } = await execPromise(`"${bin}" ${cookieArg} --no-playlist -f "${format_id}" --get-url "${url}"`, { maxBuffer: 50 * 1024 * 1024 });
     const directUrl = stdout.trim();
 
-    return NextResponse.redirect(directUrl, 302);
+    // Proxy the download through the server to bypass IP-locking
+    const response = await fetch(directUrl);
+    
+    if (!response.ok) {
+      throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
+    }
+
+    const headers = new Headers();
+    // Forward relevant headers from YouTube
+    headers.set('Content-Type', response.headers.get('Content-Type') || 'video/mp4');
+    headers.set('Content-Length', response.headers.get('Content-Length') || '');
+    headers.set('Content-Disposition', `attachment; filename="video_${videoId}.mp4"`);
+
+    // Stream the body directly to the client
+    return new NextResponse(response.body, {
+      status: 200,
+      headers
+    });
   } catch (error: any) {
     console.error('DOWNLOAD ERROR:', error);
     return new NextResponse(error.message, { status: 500 });
