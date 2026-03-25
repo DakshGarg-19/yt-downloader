@@ -7,7 +7,7 @@ import Image from "next/image";
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 export interface FormatOption {
-  itag: number;
+  format_id: string;
   quality: string;
   mimeType: string;
   size: string;
@@ -79,7 +79,7 @@ function FormatRow({
   index: number;
   type: 'video' | 'audio';
 }) {
-  const downloadUrl = `/api/download?videoId=${encodeURIComponent(videoId)}&itag=${fmt.itag}`;
+  const downloadUrl = `/api/download?videoId=${encodeURIComponent(videoId)}&format_id=${fmt.format_id}`;
   
   const ext = fmt.mimeType?.includes("webm")
     ? "WEBM"
@@ -269,7 +269,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                   {data.videoFormats.length > 0 ? (
                     data.videoFormats.map((fmt, index) => (
                       <FormatRow
-                        key={fmt.itag}
+                        key={fmt.format_id}
                         fmt={fmt}
                         videoId={data.videoId}
                         icon={Film}
@@ -311,7 +311,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
                   {data.audioFormats.length > 0 ? (
                     data.audioFormats.map((fmt, index) => (
                       <FormatRow
-                        key={fmt.itag}
+                        key={fmt.format_id}
                         fmt={fmt}
                         videoId={data.videoId}
                         icon={Music}

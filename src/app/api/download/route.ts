@@ -1,32 +1,44 @@
 import { NextResponse } from 'next/server';
-import ytdl from '@distube/ytdl-core';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import path from 'path';
 
 export const runtime = 'nodejs';
+const execPromise = promisify(exec);
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const videoId = searchParams.get('videoId');
-  const itag = searchParams.get('itag');
+  const format_id = searchParams.get('format_id');
 
-  if (!videoId || !itag) {
-    return new NextResponse('Missing videoId or itag', { status: 400 });
+  if (!videoId || !format_id) {
+    return new NextResponse('Missing videoId or format_id', { status: 400 });
   }
 
-  const url = `https://www.youtube.com/watch?v=${videoId}`;
-
   try {
-    const info = await ytdl.getInfo(url);
-    const format = ytdl.chooseFormat(info.formats, { quality: itag });
+    const bin = process.env.NODE_ENV === 'production' 
+      ? '/usr/local/bin/yt-dlp' // Linux production path
+      : path.join(process.cwd(), 'yt-dlp.exe'); // Local development path (Windows)
     
-    if (!format || !format.url) {
-      return new NextResponse('Format not found or URL missing', { status: 404 });
-    }
-    
-    // Redirect the browser to the direct Google CDN URL
-    // The browser will handle the download directly, bypassing Vercel limits
-    return NextResponse.redirect(format.url, 302);
-  } catch (e: any) {
-    console.error('YTDL DOWNLOAD ERROR:', e.message);
-    return new NextResponse('Download failed: ' + e.message, { status: 500 });
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+    // Get the direct stream URL
+    const { stdout: streamUrl } = await execPromise(`"${bin}" -f "${format_id}" -g "${url}"`);
+    const cleanStreamUrl = streamUrl.trim();
+
+    // Fetch the stream and pipe it to the client
+    const response = await fetch(cleanStreamUrl);
+    const blob = await response.blob();
+
+    return new NextResponse(blob, {
+      headers: {
+        'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+        'Content-Length': response.headers.get('Content-Length') || '',
+        'Content-Disposition': `attachment; filename="video_${videoId}.mp4"`,
+      },
+    });
+  } catch (error: any) {
+    console.error('DOWNLOAD ERROR:', error.message);
+    return new NextResponse('Download failed', { status: 500 });
   }
 }
