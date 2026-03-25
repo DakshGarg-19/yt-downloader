@@ -48,16 +48,14 @@ export async function GET(req: Request) {
       throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
     }
 
-    const headers = new Headers();
-    // Forward relevant headers from YouTube
-    headers.set('Content-Type', 'application/octet-stream');
-    headers.set('Content-Length', response.headers.get('Content-Length') || '');
-    headers.set('Content-Disposition', `attachment; filename="video.mp4"`);
-
-    // Stream the body directly to the client
+    // Pass the stream directly to the client with forced download headers
     return new NextResponse(response.body, {
       status: 200,
-      headers
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': response.headers.get('Content-Length') || '',
+        'Content-Disposition': `attachment; filename="video.mp4"`,
+      }
     });
   } catch (error: any) {
     console.error('DOWNLOAD ERROR:', error);

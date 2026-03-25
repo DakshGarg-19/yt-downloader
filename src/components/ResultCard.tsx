@@ -143,24 +143,17 @@ function FormatRow({
 export default function ResultCard({ data, onReset }: ResultCardProps) {
   const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
 
-  const handleDownload = async (fmt: FormatOption) => {
+  const handleDownload = (fmt: FormatOption) => {
     const formatId = fmt.format_id;
-    if (isDownloading[formatId]) return;
-
+    const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
+    
     setIsDownloading(prev => ({ ...prev, [formatId]: true }));
+    window.location.href = downloadUrl;
 
-    try {
-      const downloadUrl = `/api/download?videoId=${encodeURIComponent(data.videoId)}&format_id=${encodeURIComponent(formatId)}`;
-      window.location.assign(downloadUrl);
-      
-      // We wait a moment before resetting the UI to give the browser time to initiate
-      setTimeout(() => {
-        setIsDownloading(prev => ({ ...prev, [formatId]: false }));
-      }, 3000);
-    } catch (error) {
-      console.error("Download failed:", error);
+    // Reset the UI after a short delay
+    setTimeout(() => {
       setIsDownloading(prev => ({ ...prev, [formatId]: false }));
-    }
+    }, 5000);
   };
   return (
     <motion.div
