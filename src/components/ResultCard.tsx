@@ -93,7 +93,7 @@ function FormatRow({
     <motion.div
       variants={rowVariants}
       whileHover={{ x: 3, backgroundColor: "rgba(255,255,255,0.05)" }}
-      className={`relative w-full flex items-center justify-between px-4 py-3.5 rounded-xl border transition-colors duration-150 group text-left ${index === 0 ? 'ring-1 ring-yt-red/30 bg-yt-red/5 border-yt-red/20' : 'bg-white/4 border-white/[0.06]'}`}
+      className={`relative w-full flex items-center justify-between px-4 py-3.5 rounded-xl border transition-colors duration-150 group text-left ${index === 0 ? 'ring-1 ring-yt-red/30 bg-yt-red/5 border-yt-red/20' : 'bg-white/4 border-white/6'}`}
     >
       {index === 0 && <span className="absolute -left-1 top-4 bottom-4 w-1 bg-yt-red rounded-r-full" />}
       {/* Left */}
@@ -228,7 +228,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
             ].map(({ label, value }) => (
               <div
                 key={label}
-                className="bg-white/[0.03] border border-white/10 rounded-xl p-4"
+                className="bg-white/3 border border-white/10 rounded-xl p-4"
               >
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-1">
                   {label}
@@ -241,7 +241,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
           </motion.div>
 
           {/* Divider */}
-          <div className="h-px bg-white/[0.06] mb-6" />
+          <div className="h-px bg-white/6 mb-6" />
 
           {/* ═══════════════ ROW 3: Split Media Columns ═══════════════ */}
           <div className="grid md:grid-cols-2 gap-6">
@@ -331,7 +331,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
           </div>
 
           {/* ═══════════════ Footer ═══════════════ */}
-          <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-center justify-between">
+          <div className="mt-6 pt-5 border-t border-white/6 flex items-center justify-between">
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
+import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
+import fs from 'fs';
 
 export const runtime = 'nodejs';
 const execPromise = promisify(exec);
@@ -16,9 +17,22 @@ export async function GET(req: Request) {
   }
 
   try {
-    const bin = process.env.NODE_ENV === 'production' 
-      ? '/usr/local/bin/yt-dlp' // Linux production path
-      : path.join(process.cwd(), 'yt-dlp.exe'); // Local development path (Windows)
+    // Try to find yt-dlp.exe (Windows) or yt-dlp (Linux/Mac)
+    let bin = process.env.NODE_ENV === 'production' 
+      ? '/usr/local/bin/yt-dlp' 
+      : path.join(process.cwd(), process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+
+    // Diagnostic check
+    if (!fs.existsSync(bin)) {
+      console.warn('DIAGNOSTIC: Local download binary not found at:', bin);
+      try {
+        // Try finding it in the system path as a fallback
+        const cmd = process.platform === 'win32' ? 'where yt-dlp' : 'which yt-dlp';
+        bin = execSync(cmd).toString().trim().split('\n')[0];
+      } catch (e: any) {
+        bin = 'yt-dlp'; // Last resort: global path
+      }
+    }
     
     const url = `https://www.youtube.com/watch?v=${videoId}`;
 
