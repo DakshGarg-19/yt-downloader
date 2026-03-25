@@ -86,7 +86,6 @@ function FormatRow({
   index: number;
   type: 'video' | 'audio';
   onDownload: (fmt: FormatOption) => void;
-  progress: number;
   isDownloading: boolean;
 }) {
   const ext = fmt.mimeType?.includes("webm")
