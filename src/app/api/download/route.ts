@@ -9,66 +9,57 @@ export const runtime = 'nodejs';
 const execPromise = promisify(exec);
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const videoId = searchParams.get('videoId');
-  const format_id = searchParams.get('format_id');
-  const isAudio = searchParams.get('type') === 'audio';
+const { searchParams } = new URL(req.url);
+const videoId = searchParams.get('videoId');
+const format_id = searchParams.get('format_id');
 
-  if (!videoId || !format_id) {
-    return new NextResponse('Missing info', { status: 400 });
-  }
+if (!videoId || !format_id) {
+return new NextResponse('Missing videoId or format_id', { status: 400 });
+}
 
-  const cookiePath = path.join(os.tmpdir(), `yt-dl-${Date.now()}.txt`);
-  
-  try {
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
-    const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
-    
-    // The master key. This must be exactly the same in BOTH the yt-dlp command AND the fetch request.
-    const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+try {
+const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-    if (process.env.YOUTUBE_COOKIES) {
-      fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
-    }
+// On Linux/Docker, yt-dlp is installed globally in the system path.
+const bin = process.env.NODE_ENV === 'production' ? '/usr/local/bin/yt-dlp' : 'yt-dlp';
 
-    const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
+// Secure runtime cookie path
+const cookiePath = path.join(os.tmpdir(), 'youtube-cookies.txt');
 
-    // Extract the raw URL using --print urls (safer than --get-url)
-    const { stdout } = await execPromise(
-      `"${bin}" ${cookieArg} --user-agent "${userAgent}" --js-runtimes node --no-playlist --quiet --no-warnings --print urls -f "${format_id}" "${url}"`,
-      { maxBuffer: 100 * 1024 * 1024 }
-    );
+// Write the cookies from the environment variable to a temporary file in the Docker container
+if (process.env.YOUTUBE_COOKIES) {
+fs.writeFileSync(cookiePath, process.env.YOUTUBE_COOKIES);
+} else if (fs.existsSync(path.join(process.cwd(), 'cookies.txt'))) {
+// Fallback for local development
+fs.copyFileSync(path.join(process.cwd(), 'cookies.txt'), cookiePath);
+}
 
-    const directUrl = stdout.trim().split('\n').pop();
-    
-    if (!directUrl || !directUrl.startsWith('http')) {
-        throw new Error('Failed to extract valid URL from YouTube');
-    }
+const cookieArg = fs.existsSync(cookiePath) ? `--cookies "${cookiePath}"` : '';
 
-    // 🚨 THE CRITICAL FIX: We MUST pass the Chrome User-Agent to the fetch request, or YouTube blocks the stream. 🚨
-    const res = await fetch(directUrl, {
-        headers: {
-            'User-Agent': userAgent
-        }
-    });
+// Get the direct stream URL using the system binary
+const cmd = `"${bin}" ${cookieArg} --js-runtimes node --no-playlist --user-agent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36" -f "${format_id}" --get-url "${url}"`;
+const { stdout } = await execPromise(cmd, { maxBuffer: 50 * 1024 * 1024 });
+const directUrl = stdout.trim();
 
-    if (!res.ok) {
-        throw new Error(`YouTube blocked the download stream: ${res.status}`);
-    }
+// Proxy the download through the server to bypass IP-locking
+const response = await fetch(directUrl);
 
-    const ext = isAudio ? 'mp3' : 'mp4';
-    const headers = new Headers(res.headers);
-    headers.set('Content-Disposition', `attachment; filename="KODEX_${videoId}.${ext}"`);
-    headers.set('Content-Type', 'application/octet-stream');
+if (!response.ok) {
+throw new Error(`YouTube source returned ${response.status}: ${response.statusText}`);
+}
 
-    return new NextResponse(res.body, { headers });
-    
-  } catch (e: any) {
-    console.error('Download Pipe Error:', e);
-    return new NextResponse(`Download Error: ${e.message}`, { status: 500 });
-  } finally {
-    if (fs.existsSync(cookiePath)) {
-      try { fs.unlinkSync(cookiePath); } catch (e) {}
-    }
-  }
+    // Stream the body directly to the client
+    // Pass the stream directly to the client with forced download headers
+return new NextResponse(response.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': response.headers.get('Content-Length') || '',
+        'Content-Disposition': `attachment; filename="video.mp4"`,
+      }
+});
+} catch (error: any) {
+console.error('DOWNLOAD ERROR:', error);
+return new NextResponse(error.message, { status: 500 });
+}
 }
