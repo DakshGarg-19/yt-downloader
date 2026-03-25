@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import path from 'path';
+import fs from 'fs';
 
 export const runtime = 'nodejs';
 const execPromise = promisify(exec);
@@ -9,9 +11,15 @@ export async function POST(req: Request) {
   try {
     const { url } = await req.json();
     
-    // Call 'yt-dlp' as a global system command. 
-    // This requires you to have yt-dlp installed and in your PATH.
-    const { stdout } = await execPromise(`yt-dlp --cookies cookies.txt -j "${url}"`);
+    // Use the global path where pip3 installs it on Render/Linux
+    const bin = process.env.NODE_ENV === 'production' 
+      ? '/usr/local/bin/yt-dlp' 
+      : path.join(process.cwd(), process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp');
+
+    const cookies = path.join(process.cwd(), 'cookies.txt');
+    const cookieArg = fs.existsSync(cookies) ? `--cookies "${cookies}"` : '';
+
+    const { stdout } = await execPromise(`"${bin}" ${cookieArg} -j "${url}"`);
     
     // Fix: Find the first '{' and last '}' to strip warnings
     const jsonString = stdout.slice(stdout.indexOf('{'), stdout.lastIndexOf('}') + 1);

@@ -121,7 +121,7 @@ function FormatRow({
           href={downloadUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`w-10 h-10 rounded-lg bg-white/[0.04] ${hoverColor} flex items-center justify-center transition-colors duration-200 group`}
+          className={`w-10 h-10 rounded-lg bg-white/4 ${hoverColor} flex items-center justify-center transition-colors duration-200 group`}
         >
           <Download className="w-4 h-4 text-white/40 group-hover:text-white transition-colors duration-200" />
         </a>
@@ -203,7 +203,7 @@ export default function ResultCard({ data, onReset }: ResultCardProps) {
               transition={{ delay: 0.3 }}
               className="lg:w-56 xl:w-64 shrink-0"
             >
-              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <div className="rounded-xl border border-white/6 bg-white/2 p-4">
                 <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2">
                   How it works
                 </p>
