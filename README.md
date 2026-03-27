@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# YT Downloader
 
-## Getting Started
+A modern, fast, and reliable YouTube video downloader built with Next.js, React 19, and TailwindCSS. It utilizes `yt-dlp` under the hood with a robust "Bulletproof Native Stream Architecture" to stream and download high-quality videos and audio securely and efficiently.
 
-First, run the development server:
+## 🌟 Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Bulletproof Native Stream Architecture**: Employs direct server-side streaming via `spawn` and native browser download management to prevent file corruption.
+- **Bot Bypass & IP-Locking Workarounds**: Configured to bypass advanced bot detection mechanisms.
+- **Beautiful UI/UX**: Crafted with Tailwind CSS, DaisyUI themes (Dark/Forest mode toggle), and smooth animations using Framer Motion and GSAP. 
+- **High-Quality Downloads**: Uses `youtube-dl-exec` for reliable media extraction.
+- **Format Filtering**: Strict HTTPS format filtering for reliable file delivery.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework**: [Next.js](https://nextjs.org) (App Router)
+- **Frontend library**: [React 19](https://react.dev)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com) + [DaisyUI](https://daisyui.com/) (with dynamic theme toggles)
+- **Animations**: [Framer Motion](https://www.framer.com/motion/) & [GSAP](https://gsap.com/)
+- **Icons**: [Lucide React](https://lucide.dev)
+- **Downloader Core**: `youtube-dl-exec` (`yt-dlp`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 💻 Running Locally
 
-## Learn More
+### Prerequisites
 
-To learn more about Next.js, take a look at the following resources:
+Ensure you have the following installed on your machine:
+- Node.js (v20.0.0 or later)
+- Python 3 (required by `yt-dlp`)
+- FFmpeg (for media processing & merging)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Installation
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Clone the repository** (or download the source):
+   ```bash
+   git clone <repository-url>
+   cd yt-downloader
+   ```
 
-## Deploy on Vercel
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Access the application**: 
+   Open [http://localhost:3000](http://localhost:3000) with your browser.
+
+## 🐳 Docker Deployment (e.g., Railway)
+
+This project includes a `Dockerfile` pre-configured to handle all the necessary system dependencies (like FFmpeg and Python) required by `yt-dlp`.
+
+1. **Build the Docker Image**:
+   ```bash
+   docker build -t yt-downloader .
+   ```
+
+2. **Run the Docker Container**:
+   ```bash
+   docker run -p 3000:3000 yt-downloader
+   ```
+
+To deploy on [Railway.app](https://railway.app/), simply connect this repository and let Railway automatically build and deploy the Dockerfile.
+
+## 📝 License
+
+This project is intended for personal use and educational purposes. Ensure you comply with YouTube's Terms of Service and copyright laws when using this software.
